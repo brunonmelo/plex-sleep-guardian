@@ -1,0 +1,25 @@
+[Unit]
+Description=Plex Sleep Guardian - Prevent sleep during active streams
+After=network-online.target plexmediaserver.service
+Wants=network-online.target
+Requires=plexmediaserver.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/plex-sleep-guardian.conf
+ExecStart=/usr/local/bin/plex-sleep-guardian
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Segurança
+User=root
+Group=root
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/run /var/log
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
