@@ -2,19 +2,6 @@
 
 Um serviço systemd que impede a suspensão do sistema enquanto há streams ativos no Plex Media Server.
 
-## 📋 Índice
-- [Funcionalidades](#funcionalidades)
-- [Requisitos](#requisitos)
-- [Instalação](#instalação)
-- [Como Obter o Token do Plex](#como-obter-o-token-do-plex)
-- [Uso](#uso)
-- [Configuração](#configuração)
-- [Desinstalação](#desinstalação)
-- [Troubleshooting](#troubleshooting)
-- [Estrutura de Arquivos](#estrutura-de-arquivos)
-- [Contribuição](#contribuição)
-- [Licença](#licença)
-
 ## 🚀 Funcionalidades
 
 - ✅ Verifica a cada 2 minutos se há streams ativos no Plex
