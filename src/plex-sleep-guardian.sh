@@ -4,11 +4,12 @@ set -euo pipefail
 # Carregar configurações
 CONFIG_FILE="/etc/plex-sleep-guardian.conf"
 if [ -f "$CONFIG_FILE" ]; then
+    # Carrega o arquivo de configuração de forma segura
     source "$CONFIG_FILE"
 fi
 
 # Usar variável de ambiente se disponível (sobrescreve configuração)
-if [ -n "$PLEX_TOKEN" ]; then
+if [ -n "${PLEX_TOKEN:-}" ]; then
     TOKEN="$PLEX_TOKEN"
 fi
 
@@ -46,9 +47,9 @@ start_inhibit() {
 stop_inhibit() {
     if [[ -f "$SLEEP_GUARDIAN_PID_FILE" ]]; then
         local pid
-        pid=$(cat "$SLEEP_GUARDIAN_PID_FILE")
+        pid=$(cat "$SLEEP_GUARDIAN_PID_FILE" 2>/dev/null)
         
-        if kill "$pid" 2>/dev/null; then
+        if [ -n "$pid" ] && kill "$pid" 2>/dev/null; then
             log_message "Sleep Guardian lock removido (PID: $pid)"
         else
             log_message "Sleep Guardian lock já estava removido"
@@ -61,7 +62,7 @@ stop_inhibit() {
 # Verificar se há streams ativos no Plex
 check_plex() {
     # Verificar se o token está configurado
-    if [ -z "$TOKEN" ]; then
+    if [ -z "$PLEX_TOKEN" ]; then
         log_message "❌ ERRO: Token do Plex não configurado"
         log_message "❌ Configure o token em $CONFIG_FILE ou na variável de ambiente PLEX_TOKEN"
         return 1
@@ -69,9 +70,10 @@ check_plex() {
 
     # Fazer requisição para o Plex
     if ! resp=$(curl -s -f \
-        -H "X-Plex-Token: $TOKEN" \
+        -H "X-Plex-Token: $PLEX_TOKEN" \
         -H "Accept: application/json" \
         --connect-timeout 10 \
+        --max-time 15 \
         "$URL" 2>/dev/null); then
         log_message "❌ ERRO: Falha ao conectar com o Plex (curl falhou)"
         return 1
@@ -101,6 +103,7 @@ touch "$LOG_FILE"
 chmod 666 "$LOG_FILE" 2>/dev/null || true
 
 log_message "🚀 Plex Sleep Guardian iniciado"
+log_message "📋 Configuração: Token=${TOKEN:0:4}****, URL=$URL, Intervalo=$CHECK_INTERVAL"
 
 # Loop principal
 while true; do

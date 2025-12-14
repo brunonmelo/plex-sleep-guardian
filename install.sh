@@ -56,22 +56,22 @@ get_plex_token() {
     local token_input
     
     # Verificar se já existe configuração
-    if [ -f "$CONFIG_FILE" ] && grep -q "^TOKEN=" "$CONFIG_FILE"; then
-        CURRENT_TOKEN=$(grep "^TOKEN=" "$CONFIG_FILE" | cut -d'=' -f2 | tr -d '"')
+    if [ -f "$CONFIG_FILE" ] && grep -q "^PLEX_TOKEN=" "$CONFIG_FILE"; then
+        CURRENT_TOKEN=$(grep "^PLEX_TOKEN=" "$CONFIG_FILE" | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
         print_info "Token atual encontrado: ${CURRENT_TOKEN:0:4}****"
         read -p "Deseja usar um novo token? (s/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Ss]$ ]]; then
             read -p "Digite o novo token do Plex: " token_input
-            TOKEN="$token_input"
+            PLEX_TOKEN="$token_input"
         else
-            TOKEN="$CURRENT_TOKEN"
+            PLEX_TOKEN="$CURRENT_TOKEN"
             return
         fi
     # Verificar variável de ambiente
     elif [ -n "${PLEX_TOKEN:-}" ]; then
         print_info "Usando token da variável de ambiente PLEX_TOKEN"
-        TOKEN="$PLEX_TOKEN"
+        PLEX_TOKEN="$PLEX_TOKEN"
         return
     else
         echo ""
@@ -87,7 +87,7 @@ get_plex_token() {
             print_error "Token não fornecido. Instalação cancelada."
             exit 1
         fi
-        TOKEN="$token_input"
+        PLEX_TOKEN="$token_input"
     fi
 }
 
@@ -116,11 +116,11 @@ test_plex_token() {
     fi
 }
 
-# Obter tokenPLEX
+# Obter token
 get_plex_token
 
 # Testar token (opcional)
-test_plex_token "$TOKEN"
+test_plex_token "$PLEX_TOKEN"
 
 # Criar arquivo de configuração
 print_info "Criando arquivo de configuração em $CONFIG_FILE..."
@@ -129,7 +129,7 @@ cat > "$CONFIG_FILE" << EOF
 # Edite este arquivo e reinicie o serviço para aplicar mudanças
 
 # Token de autenticação do Plex (OBRIGATÓRIO)
-TOKEN="$TOKEN"
+PLEX_TOKEN="$PLEX_TOKEN"
 
 # URL do servidor Plex (altere se necessário)
 URL="http://localhost:32400/status/sessions"
@@ -176,6 +176,19 @@ fi
 touch "$LOG_FILE"
 chmod 666 "$LOG_FILE" 2>/dev/null || true
 
+# Verificar status
+print_info "Aguardando 3 segundos para verificar status..."
+sleep 3
+
+if systemctl is-active --quiet plex-sleep-guardian.service; then
+    print_info "✅ Serviço está ativo e rodando!"
+else
+    print_error "❌ Serviço não está rodando."
+    print_error "Verifique o status: sudo systemctl status plex-sleep-guardian"
+    print_error "Verifique os logs: sudo journalctl -u plex-sleep-guardian -n 30"
+    exit 1
+fi
+
 # Instalação concluída
 print_info "========================================="
 print_info "✅ INSTALAÇÃO CONCLUÍDA!"
@@ -189,9 +202,8 @@ print_info "  Reiniciar:    sudo systemctl restart plex-sleep-guardian"
 echo ""
 print_info "⚙️  CONFIGURAÇÃO:"
 print_info "  Arquivo de configuração: $CONFIG_FILE"
+print_info "  Token salvo: ${PLEX_TOKEN:0:4}****"
 print_info "  Você pode editar as configurações e reiniciar o serviço."
 echo ""
 print_info "🔍 VERIFICAÇÃO:"
 print_info "  Verificar inhibits ativos: systemd-inhibit --list"
-print_info "  Testar token manualmente:"
-print_info "    curl -H \"X-Plex-Token: SEU_TOKEN\" http://localhost:32400/status/sessions"
