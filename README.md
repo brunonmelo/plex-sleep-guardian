@@ -3,7 +3,6 @@
 Um serviço systemd que impede a suspensão do sistema enquanto há streams ativos no Plex Media Server.
 
 ## 📋 Índice
-
 - [Funcionalidades](#funcionalidades)
 - [Requisitos](#requisitos)
 - [Instalação](#instalação)
@@ -15,22 +14,20 @@ Um serviço systemd que impede a suspensão do sistema enquanto há streams ativ
 - [Estrutura de Arquivos](#estrutura-de-arquivos)
 - [Contribuição](#contribuição)
 - [Licença](#licença)
-- [Suporte](#suporte)
 
 ## 🚀 Funcionalidades
 
-- ✅ Verifica periodicamente se há streams ativos no Plex
+- ✅ Verifica a cada 2 minutos se há streams ativos no Plex
 - ✅ Bloqueia automaticamente a suspensão do sistema durante streams
 - ✅ Permite suspensão automática quando não há atividade
-- ✅ Logs detalhados para monitoramento e troubleshooting
-- ✅ Interface CLI para controle manual
+- ✅ Logs detalhados para monitoramento
 - ✅ Configuração flexível via arquivo ou variáveis de ambiente
 - ✅ Integração nativa com systemd
-- ✅ Suporte a reinicializações automáticas
+- ✅ Reinicialização automática em caso de falhas
 
 ## 📦 Requisitos
 
-- **Sistema Operacional**: Linux com systemd (Ubuntu 18.04+, Debian 9+, CentOS 7+)
+- **Sistema Operacional**: Linux com systemd
 - **Serviços**:
   - Plex Media Server instalado localmente
   - systemd (presente na maioria das distribuições modernas)
@@ -70,8 +67,7 @@ echo "seu_token_aqui" | sudo ./install.sh
 Durante a instalação padrão, você será solicitado a inserir o token do Plex.
 
 ## 🔑 Como Obter o Token do Plex
-
-(Siga essa documentação para recuperar o token do Plex)[https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/]
+[Siga essa documentação para recuperar o token do Plex](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
 
 ## 🎮 Uso
 
@@ -125,14 +121,17 @@ sudo plex-sleep-guardian config
 sudo plex-sleep-guardian check
 ```
 
-### Exemplos de Uso
+### Verificação do Funcionamento
 
 ```bash
-# Verificar tudo de uma vez
-sudo plex-sleep-guardian status && sudo plex-sleep-guardian test
+# Verificar logs do script
+sudo tail -f /var/log/plex-sleep-guardian.log
 
-# Monitorar em tempo real (com watch)
-watch -n 5 'plex-sleep-guardian status | tail -20'
+# Verificar inhibits ativos
+systemd-inhibit --list
+
+# Verificar se o processo está rodando
+ps aux | grep plex-sleep-guardian
 ```
 
 ## ⚙️ Configuração
@@ -147,8 +146,8 @@ watch -n 5 'plex-sleep-guardian status | tail -20'
 
 ### Hierarquia de Configuração (Ordem de Prioridade)
 
-1. Arquivo de configuração (/etc/plex-sleep-guardian.conf)
-2. Variável de ambiente (PLEX_TOKEN)
+1. Arquivo de configuração (`/etc/plex-sleep-guardian.conf`)
+2. Variável de ambiente (`PLEX_TOKEN`)
 3. Valor padrão (se definido no script)
 
 ### Exemplo de Arquivo de Configuração
@@ -157,19 +156,19 @@ watch -n 5 'plex-sleep-guardian status | tail -20'
 # Edite este arquivo e reinicie o serviço para aplicar mudanças
 
 # Token de autenticação do Plex (OBRIGATÓRIO)
-X_PLEX_TOKEN="7U1Hqjp6SKPNqC7ap6Wh"
+PLEX_TOKEN="seu_token_aqui"
 
 # Localização do arquivo de log
-LOG_FILE="/var/log/plex_sleep.log"
+LOG_FILE="/var/log/plex-sleep-guardian.log"
 
 # Arquivo PID para controle do inhibit
-INHIBIT_PID_FILE="/tmp/plex_sleep_guardian.pid"
+SLEEP_GUARDIAN_PID_FILE="/run/plex_sleep_guardian.pid"
 
-# Timeout para conexão com o Plex (em segundos)
-CURL_TIMEOUT=10
+# Intervalo de verificação em segundos (padrão: 120 = 2 minutos)
+CHECK_INTERVAL=120
 
-# Endereço do servidor Plex
-PLEX_SERVER="http://localhost:32400"
+# URL do servidor Plex (altere se necessário)
+URL="http://localhost:32400/status/sessions"
 ```
 
 ### Atualizando a Configuração
@@ -180,8 +179,8 @@ sudo nano /etc/plex-sleep-guardian.conf
 # 2. Reinicie o serviço
 sudo systemctl restart plex-sleep-guardian
 
-# 3. Verifique se as mudanças foram aplicadas
-sudo plex-sleep-guardian config
+# 3. Verifique se está funcionando
+sudo tail -f /var/log/plex-sleep-guardian.log
 ```
 
 ## 🗑️ Desinstalação
@@ -239,6 +238,18 @@ curl -v http://localhost:32400
 netstat -tlnp | grep 32400
 ```
 
+4. Script para de funcionar
+```bash
+# Verifique se há múltiplas instâncias
+ps aux | grep "plex-sleep-guardian" | grep -v grep
+
+# Verifique permissões do arquivo de log
+ls -la /var/log/plex-sleep-guardian.log
+
+# Reinicie o serviço
+sudo systemctl restart plex-sleep-guardian
+```
+
 ### Comandos de Diagnóstico
 ```bash
 # Verificar inhibits ativos no sistema
@@ -248,7 +259,10 @@ systemd-inhibit --list
 ps aux | grep "sleep infinity"
 
 # Monitorar conexões com o Plex
-sudo tcpdump -i any port 32400 -n
+sudo tcpdump -i any port 32400 -n -c 10
+
+# Testar token com output completo
+curl -v -H "X-Plex-Token: SEU_TOKEN" http://localhost:32400/status/sessions
 ```
 
 ### Logs Importantes
@@ -257,7 +271,7 @@ sudo tcpdump -i any port 32400 -n
 sudo journalctl -u plex-sleep-guardian -f
 
 # Logs do script (arquivo)
-tail -f /var/log/plex_sleep.log
+sudo tail -f /var/log/plex-sleep-guardian.log
 
 # Logs do Plex
 tail -f "/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Logs/Plex Media Server.log"
@@ -270,7 +284,6 @@ plex-sleep-guardian/
 ├── README.md                    # Esta documentação
 ├── install.sh                   # Script de instalação
 ├── uninstall.sh                 # Script de desinstalação
-├── .gitignore                  # Arquivos ignorados pelo Git
 ├── src/
 │   └── plex-sleep-guardian.sh  # Script principal
 └── systemd/
@@ -283,8 +296,8 @@ Sistema de arquivos:
 ├── /usr/local/bin/plex-sleep-guardian          # Script principal
 ├── /etc/systemd/system/plex-sleep-guardian.service  # Serviço
 ├── /etc/plex-sleep-guardian.conf               # Configurações
-├── /var/log/plex_sleep.log                     # Logs
-└── /tmp/plex_sleep_guardian.pid                # PID do processo
+├── /var/log/plex-sleep-guardian.log            # Logs
+└── /run/plex_sleep_guardian.pid                # PID do processo
 ```
 
 ## 🤝 Contribuição
@@ -313,18 +326,6 @@ git push origin minha-feature
 
 ## 📄 Licença
 Este projeto está licenciado sob a licença MIT.
-
-## ❓ Suporte
-
-Se você encontrar problemas:
-
-1. Verifique a seção de Troubleshooting
-2. Consulte os logs do sistema e do script
-3. Abra uma issue no GitHub com:
-  - Distribuição Linux e versão
-  - Saída de plex-sleep-guardian status
-  - Trechos relevantes dos logs
-  - Passos para reproduzir o problema
 
 ---
 
